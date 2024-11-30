@@ -30,12 +30,34 @@ typedef struct _ITEM {
     struct _ITEM* next;
 } ITEM, *pITEM;
 
-// 커서를 특정 위치로 이동
+struct termios original_termios;
+
+// 커서 이동
 void gotoxy(int x, int y) {
     printf("\033[%d;%dH", y + TOP_MARGIN, x + LEFT_MARGIN * 2);
 }
 
-// 키보드 입력 확인
+// 터미널 설정 초기화
+void reset_terminal_mode() {
+    tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
+    printf("\033[?25h"); // 커서 보이기
+}
+
+// 터미널 설정 수정
+void set_terminal_mode() {
+    struct termios new_termios;
+
+    tcgetattr(STDIN_FILENO, &original_termios);
+    atexit(reset_terminal_mode);
+
+    new_termios = original_termios;
+    new_termios.c_lflag &= ~(ICANON | ECHO); // 캐논 모드 및 에코 끄기
+    tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
+
+    printf("\033[?25l"); // 커서 숨기기
+}
+
+// 키 입력 확인
 int kbhit(void) {
     struct termios oldt, newt;
     int ch;
@@ -64,18 +86,18 @@ int kbhit(void) {
 // 방향키 입력 처리
 char get_arrow_key() {
     char c;
-    if ((c = getchar()) == '\033') { // ESC
-        if ((c = getchar()) == '[') { // '['
-            c = getchar(); // 방향키 값 읽기
+    if ((c = getchar()) == '\033') {
+        if ((c = getchar()) == '[') {
+            c = getchar();
             switch (c) {
-                case 'A': return UP;    // ↑
-                case 'B': return DOWN;  // ↓
-                case 'C': return RIGHT; // →
-                case 'D': return LEFT;  // ←
+                case 'A': return UP;
+                case 'B': return DOWN;
+                case 'C': return RIGHT;
+                case 'D': return LEFT;
             }
         }
     }
-    return 0; // 방향키가 아님
+    return 0;
 }
 
 // 화면 지우기
@@ -83,7 +105,7 @@ void clear_screen() {
     printf("\033[2J\033[1;1H");
 }
 
-// 게임 필드 출력
+// 필드 출력
 void PrintField() {
     for (int i = 0; i <= FIELD_WIDTH; i++) {
         gotoxy(i, 0);
@@ -145,7 +167,11 @@ void PrintWorm(pWORM wormTailNode) {
     pWORM curr = wormTailNode;
     while (curr != NULL) {
         gotoxy(curr->x, curr->y);
-        printf("O");
+        if (curr->next == NULL) {
+            printf("@"); // 머리는 '@'
+        } else {
+            printf("O"); // 몸체는 'O'
+        }
         curr = curr->next;
     }
 }
@@ -154,16 +180,6 @@ void PrintWorm(pWORM wormTailNode) {
 void ClearWorm(int x, int y) {
     gotoxy(x, y);
     printf(" ");
-}
-
-// 웜 메모리 해제
-void FreeWormList(pWORM wormTailNode) {
-    pWORM curr = wormTailNode;
-    while (curr != NULL) {
-        pWORM temp = curr;
-        curr = curr->next;
-        free(temp);
-    }
 }
 
 // 점수 출력
@@ -187,7 +203,21 @@ void PrintItem(pITEM itemNode) {
     pITEM curr = itemNode->next;
     while (curr != NULL) {
         gotoxy(curr->x, curr->y);
-        printf("@");
+        printf("*"); // 아이템은 '*'
+        curr = curr->next;
+    }
+}
+
+// 아이템 제거
+void RemoveItem(pITEM itemNode, int x, int y) {
+    pITEM curr = itemNode;
+    while (curr->next != NULL) {
+        if (curr->next->x == x && curr->next->y == y) {
+            pITEM temp = curr->next;
+            curr->next = temp->next;
+            free(temp);
+            return;
+        }
         curr = curr->next;
     }
 }
@@ -197,6 +227,7 @@ int CheckItemHit(pWORM wormHeadPointer, pITEM itemNode) {
     pITEM curr = itemNode->next;
     while (curr != NULL) {
         if (wormHeadPointer->x == curr->x && wormHeadPointer->y == curr->y) {
+            RemoveItem(itemNode, curr->x, curr->y); // 충돌한 아이템 제거
             return 1;
         }
         curr = curr->next;
@@ -204,9 +235,9 @@ int CheckItemHit(pWORM wormHeadPointer, pITEM itemNode) {
     return 0;
 }
 
-// 메인 함수
 int main() {
     srand((unsigned int)time(NULL));
+    set_terminal_mode(); // 터미널 설정 초기화 및 커서 숨기기
 
     pWORM wormHeadNode = (pWORM)malloc(sizeof(WORM));
     pWORM wormTailNode = (pWORM)malloc(sizeof(WORM));
@@ -224,7 +255,6 @@ int main() {
     itemNode->next = NULL;
 
     int score = 0;
-    int itemCounter = 0;
 
     clear_screen();
     PrintField();
@@ -255,15 +285,13 @@ int main() {
             break;
         }
 
-        if (itemCounter < ITEM_MAX) {
+        if (itemNode->next == NULL) { // 아이템이 없으면 새로 생성
             CreateItem(itemNode);
-            itemCounter++;
         }
 
         if (CheckItemHit(wormHeadNode, itemNode)) {
             AddWorm(wormTailNode);
             score += 100;
-            itemCounter--;
         }
 
         PrintItem(itemNode);
@@ -273,10 +301,9 @@ int main() {
         usleep(DELAYTIME);
     }
 
-    FreeWormList(wormTailNode);
     free(itemNode);
+    free(wormHeadNode);
+    free(wormTailNode);
+
     return 0;
 }
-//
-// Created by 장영하 on 2024. 11. 28..
-//
