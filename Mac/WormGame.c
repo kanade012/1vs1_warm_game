@@ -235,6 +235,16 @@ int CheckItemHit(pWORM wormHeadPointer, pITEM itemNode) {
     return 0;
 }
 
+int CountItems(pITEM itemNode) {
+    int count = 0;
+    pITEM curr = itemNode->next;
+    while (curr != NULL) {
+        count++;
+        curr = curr->next;
+    }
+    return count;
+}
+
 int main() {
     srand((unsigned int)time(NULL));
     set_terminal_mode(); // 터미널 설정 초기화 및 커서 숨기기
@@ -285,7 +295,7 @@ int main() {
             break;
         }
 
-        if (itemNode->next == NULL) { // 아이템이 없으면 새로 생성
+        if (CountItems(itemNode) < ITEM_MAX) { // 아이템이 부족하면 추가 생성
             CreateItem(itemNode);
         }
 
