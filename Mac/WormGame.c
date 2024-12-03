@@ -64,7 +64,7 @@ int main() {
 
         // 초기화
         initializeWorm(&worm1, 5, 5, '&', 'o', 'd');
-        initializeWorm(&worm2, MAP_WIDTH - 6, MAP_HEIGHT - 6, '@', 'o', 'l');
+        initializeWorm(&worm2, MAP_WIDTH - 6, MAP_HEIGHT - 6, '@', 'o', 'j');
         spawnItems(items, ITEM_COUNT, &worm1, &worm2);
 
         int winner = 0;
@@ -171,7 +171,7 @@ void showInstructions() {
     clearScreen();
     printf("=== Game Instructions ===\n");
     printf("1. Player 1 uses WASD keys. Head: &, Body: o.\n");
-    printf("2. Player 2 uses Arrow keys. Head: @, Body: o.\n");
+    printf("2. Player 2 uses IJKL keys. Head: @, Body: o.\n");
     printf("3. Collect items (*) to grow your worm.\n");
     printf("4. Avoid colliding with the map boundaries or your opponent.\n");
     printf("5. Worms cannot reverse direction directly.\n");
